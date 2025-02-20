@@ -46,7 +46,7 @@ group = "me.kcra.takenaka" // change me
 // format: <oldest version>+<newest version>[-SNAPSHOT]
 // this is included in META-INF/MANIFEST.MF under Implementation-Version
 // be nice to people who use the bundles and don't change the format
-version = "1.8.8+$latestSnapshot" // change me
+version = "1.8.8+$latestSnapshot"
 
 
 /**
@@ -58,7 +58,7 @@ enum class PlatformTristate(val wantsClient: Boolean, val wantsServer: Boolean) 
     SERVER(false, true)
 }
 
-val platform = PlatformTristate.CLIENT_SERVER // change me
+val platform = PlatformTristate.CLIENT_SERVER
 
 /**
  * The root cache workspace.
@@ -110,19 +110,17 @@ val yarnProvider = YarnMetadataProvider(sharedCacheWorkspace)
 val mappingConfig = buildMappingConfig {
     version(
         manifest
-            .range("1.8.8", "1.21.4") { // change me
+            .range("1.8.8", latestRelease) {
                 // exclude 1.20, 1.20.3, 1.20.5 and 1.21.2 - hotfixed versions                
                 // exclude 1.16 and 1.10.1, they don't have most mappings and are basically not used at all
-                // exclude 1.8.9, client-only update - no Spigot mappings, no thank you
                 // exclude 1.9.1 and 1.9.3 - no mappings at all
-                exclude("1.16", "1.10.1", "1.8.9", "1.9.1", "1.9.3", "1.20", "1.20.3", "1.20.5", "1.21.2")
+                exclude("1.16", "1.10.1", "1.9.1", "1.9.3", "1.20", "1.20.3", "1.20.5", "1.21.2")
 
-                // include only releases, no snapshots
                 includeTypes(Version.Type.RELEASE)
             }
             .map(Version::id)
     )
-    version(latestSnapshot) // latest snapshot, change me
+    version(latestSnapshot)
     workspace(mappingCacheWorkspace)
 
     // remove Searge's ID namespace, it's not necessary
@@ -138,7 +136,6 @@ val mappingConfig = buildMappingConfig {
 
     contributors { versionWorkspace ->
         val mojangProvider = MojangManifestAttributeProvider(versionWorkspace)
-        val spigotProvider = SpigotManifestProvider(versionWorkspace)
 
         buildList {
             if (platform.wantsServer) {
@@ -153,21 +150,6 @@ val mappingConfig = buildMappingConfig {
             add(IntermediaryMappingResolver(versionWorkspace, sharedCacheWorkspace))
             add(YarnMappingResolver(versionWorkspace, yarnProvider))
             add(SeargeMappingResolver(versionWorkspace, sharedCacheWorkspace))
-
-            // Spigot resolvers have to be last
-            if (platform.wantsServer) {
-                val link = LegacySpigotMappingPrepender.Link()
-
-                add(
-                    // 1.16.5 mappings have been republished with proper packages, even though the reobfuscated JAR does not have those
-                    // See: https://hub.spigotmc.org/stash/projects/SPIGOT/repos/builddata/commits/80d35549ec67b87a0cdf0d897abbe826ba34ac27
-                    link.createPrependingContributor(
-                        SpigotClassMappingResolver(versionWorkspace, spigotProvider),
-                        prependEverything = versionWorkspace.version.id == "1.16.5"
-                    )
-                )
-                add(link.createPrependingContributor(SpigotMemberMappingResolver(versionWorkspace, spigotProvider)))
-            }
         }
     }
 
@@ -185,13 +167,12 @@ val mappingConfig = buildMappingConfig {
 val mappingProvider = ResolvingMappingProvider(mappingConfig, manifest)
 val analyzer = MappingAnalyzerImpl(
     AnalysisOptions(
-        innerClassNameCompletionCandidates = setOf("spigot"),
         inheritanceAdditionalNamespaces = setOf("searge") // mojang could be here too for maximal parity, but that's in exchange for a little bit of performance
     )
 )
 
 val ancestryIndexNs = "takenaka_node"
-val ancestryNamespaces = listOf("mojang", "spigot", "searge", "intermediary")
+val ancestryNamespaces = listOf("mojang", "searge", "intermediary")
 
 val ancestryProvider = CachedAncestryProvider(SimpleAncestryProvider(null, ancestryNamespaces))
 
@@ -294,10 +275,8 @@ val webConfig = buildWebConfig {
     transformer(MinifyingTransformer())
     index(modularClassSearchIndexOf(JDK_21_BASE_URL))
 
-    replaceCraftBukkitVersions("spigot")
-    friendlyNamespaces("mojang", "spigot", "yarn", "searge", "intermediary", "source")
+    friendlyNamespaces("mojang", "yarn", "searge", "intermediary", "source")
     namespace("mojang", "Mojang", "#4D7C0F", AbstractMojangMappingResolver.META_LICENSE)
-    namespace("spigot", "Spigot", "#CA8A04", AbstractSpigotMappingResolver.META_LICENSE)
     namespace("yarn", "Yarn", "#626262", YarnMappingResolver.META_LICENSE)
     namespace("searge", "Searge", "#B91C1C", SeargeMappingResolver.META_LICENSE)
     namespace("intermediary", "Intermediary", "#0369A1", IntermediaryMappingResolver.META_LICENSE)
@@ -321,48 +300,6 @@ val buildWeb by tasks.registering {
     }
     doLast {
         webWorkspace[".nojekyll"].writeText("")
-        webWorkspace["CNAME"].writeText("mappings.dev") // change me, remove if you want to build for a *.github.io domain
-    }
-}
-
-publishing {
-    publications {
-        create<MavenPublication>("mavenBundle") {
-            artifact(createBundle)
-            pom {
-                name.set("mappings")
-                description.set("A mapping bundle with a basic set of mappings for Mojang-based server and client development.")
-                url.set("https://github.com/zlataovce/mappings") // change me
-                developers {
-                    developer {
-                        id.set("zlataovce")
-                        name.set("Matouš Kučera")
-                        email.set("mk@kcra.me")
-                    }
-                }
-                scm {
-                    connection.set("scm:git:github.com/zlataovce/mappings.git") // change me
-                    developerConnection.set("scm:git:ssh://github.com/zlataovce/mappings.git") // change me
-                    url.set("https://github.com/zlataovce/mappings/tree/main") // change me
-                }
-            }
-        }
-    }
-
-    repositories {
-        maven {
-            url = uri(
-                if ((project.version as String).endsWith("-SNAPSHOT")) {
-                    "https://repo.screamingsandals.org/snapshots" // change me
-                } else {
-                    "https://repo.screamingsandals.org/releases" // change me
-                }
-            )
-            credentials {
-                // make sure to add the `REPO_USERNAME` and `REPO_PASSWORD` secrets to the repository
-                username = System.getenv("REPO_USERNAME")
-                password = System.getenv("REPO_PASSWORD")
-            }
-        }
+        webWorkspace["CNAME"].writeText("mappings.ithundxr.dev")
     }
 }
