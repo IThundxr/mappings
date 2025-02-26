@@ -67,7 +67,14 @@ const { getProperties } = require("properties-file");
                 message: "Update Mapping Versions",
                 content: btoa(properties.format()),
                 sha: getFile.data.sha
-            })
+            });
+
+            await octokit.rest.actions.createWorkflowDispatch({
+                owner,
+                repo,
+                workflow_id: "build",
+                ref: "main"
+            });
         }
         
     } catch (error) {
