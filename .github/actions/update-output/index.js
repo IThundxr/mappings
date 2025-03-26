@@ -72,7 +72,7 @@ const { getProperties } = require("properties-file");
             await octokit.rest.actions.createWorkflowDispatch({
                 owner,
                 repo,
-                workflow_id: "Update Mappings",
+                workflow_id: "build.yml",
                 ref: "main"
             });
         }
