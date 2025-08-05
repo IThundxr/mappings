@@ -6,6 +6,8 @@ const { getProperties } = require("properties-file");
 
 (async () => {
     try {
+        const octokit = github.getOctokit(core.getInput("GITHUB_TOKEN"));
+        
         const contents = fs.readFileSync('gradle.properties').toString();
         const immutableProperties = getProperties(contents)
         const properties = new PropertiesEditor(contents)
@@ -49,8 +51,10 @@ const { getProperties } = require("properties-file");
         }
         
         if (hasUpdated) {
-            const octokit = github.getOctokit(core.getInput("GITHUB_TOKEN"));
-
+            if (!(await yarnAndIntermediaryExists(mLatestRelease)
+                && await yarnAndIntermediaryExists(mLatestSnapshot)))
+                return;
+            
             const owner = github.context.repo.owner;
             const repo = github.context.repo.repo;
             
@@ -81,3 +85,29 @@ const { getProperties } = require("properties-file");
         core.setFailed(error.message);
     }
 })();
+
+async function yarnAndIntermediaryExists(version) {
+    const intermediaryExists = await (async () => {
+        try {
+            const file = await octokit.rest.repos.getContent({
+                owner: "FabricMC",
+                repo: "intermediary",
+                path: `mappings/${version}.tiny`,
+                ref: "master",
+            });
+            return file.data.git_url != null
+        } catch (err) {
+            console.log("Failed to fetch intermediary file");
+            return false;
+        }
+    })();
+
+    const yarnExists = await (async () => {
+        const res = await fetch(`https://meta.fabricmc.net/v2/versions/yarn/${version}`);
+        if (!res.ok) return false;
+        const data = await res.json();
+        return Array.isArray(data) && data.length > 0;
+    })();
+
+    return intermediaryExists && yarnExists;
+}
