@@ -1,0 +1,8 @@
+version: "1"
+rules:
+  - base: main
+    upstream: zlataovce:main
+    mergeMethod: merge
+    reviewers: &reviewers
+      - IThundxr
+    assignees: *reviewers
