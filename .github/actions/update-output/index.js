@@ -95,6 +95,7 @@ async function yarnAndIntermediaryExists(version) {
                 path: `mappings/${version}.tiny`,
                 ref: "master",
             });
+            console.log(file.data);
             return file.data.git_url != null
         } catch (err) {
             console.log("Failed to fetch intermediary file");
