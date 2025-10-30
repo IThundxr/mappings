@@ -51,8 +51,8 @@ const { getProperties } = require("properties-file");
         }
         
         if (hasUpdated) {
-            if (!(await yarnAndIntermediaryExists(mLatestRelease)
-                && await yarnAndIntermediaryExists(mLatestSnapshot)))
+            if (!(await yarnAndIntermediaryExists(octokit, mLatestRelease)
+                && await yarnAndIntermediaryExists(octokit, mLatestSnapshot)))
                 return;
             
             const owner = github.context.repo.owner;
@@ -86,7 +86,7 @@ const { getProperties } = require("properties-file");
     }
 })();
 
-async function yarnAndIntermediaryExists(version) {
+async function yarnAndIntermediaryExists(octokit, version) {
     const intermediaryExists = await (async () => {
         try {
             const file = await octokit.rest.repos.getContent({
